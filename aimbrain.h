@@ -9,21 +9,23 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#include <openssl/buffer.h>
+
+typedef struct AimbrainContext {
+  const char* api_key;
+  const char* secret;
+} AimbrainContext;
 
 typedef enum AimbrainErrorCode {
   AIMBRAIN_NO_ERROR,
-  AIMBRAIN_LIBRARY_ERROR
+  AIMBRAIN_MEMORY_ERROR,
+  AIMBRAIN_NETWORK_ERROR
 } AimbrainErrorCode;
 
 typedef struct AimbrainError {
   AimbrainErrorCode code;
   const char* msg;
 } AimbrainError;
-
-typedef struct AimbrainContext {
-  const char* apiKey;
-  const char* secret;
-} AimbrainContext;
 
 typedef struct SessionsInput {
   const char* userID;
@@ -34,7 +36,7 @@ typedef struct SessionsInput {
 } SessionsInput;
 
 typedef struct SessionsOutput {
-  const char* sessions;
+  const char* session;
   int face;
   int voice;
   int behaviour;
