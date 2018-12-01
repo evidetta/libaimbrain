@@ -1,16 +1,10 @@
 #ifndef AIMBRAIN_H
 #define AIMBRAIN_H
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <curl/curl.h>
-#include <cjson/cJSON.h>
-#include <openssl/bio.h>
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
-#include <openssl/buffer.h>
+//
+#define AIMBRAIN_HOST "https://api.aimbrain.com"
 
+//General Structs
 typedef struct AimbrainContext {
   const char* api_key;
   const char* secret;
@@ -19,7 +13,8 @@ typedef struct AimbrainContext {
 typedef enum AimbrainErrorCode {
   AIMBRAIN_NO_ERROR,
   AIMBRAIN_MEMORY_ERROR,
-  AIMBRAIN_NETWORK_ERROR
+  AIMBRAIN_NETWORK_ERROR,
+  AIMBRAIN_SERVICE_ERROR
 } AimbrainErrorCode;
 
 typedef struct AimbrainError {
@@ -27,25 +22,26 @@ typedef struct AimbrainError {
   const char* msg;
 } AimbrainError;
 
-typedef struct SessionsInput {
-  const char* userID;
+//Sessions
+typedef struct AimbrainSessionsInput {
+  const char* user_id;
   const char* device;
   const char* system;
-  int screenHeight;
-  int screenWidth;
-} SessionsInput;
+  int screen_height;
+  int screen_width;
+} AimbrainSessionsInput;
 
-typedef struct SessionsOutput {
-  const char* session;
+typedef struct AimbrainSessionsOutput {
+  char* session;
   int face;
   int voice;
   int behaviour;
   AimbrainError error;
-} SessionsOutput;
+} AimbrainSessionsOutput;
 
 AimbrainContext* Aimbrain_Init(const char* apiKey, const char* secret);
 void Aimbrain_Dispose(AimbrainContext* ctx);
 
-SessionsOutput Aimbrain_Sessions(AimbrainContext* ctx, SessionsInput input);
+void Aimbrain_Sessions(AimbrainContext* ctx, AimbrainSessionsInput input, AimbrainSessionsOutput* output);
 
 #endif

@@ -1,4 +1,7 @@
+#include <stdlib.h>
+
 #include "aimbrain.h"
+
 
 AimbrainContext* Aimbrain_Init(const char* api_key, const char* secret) {
   AimbrainContext* ctx = malloc(sizeof(AimbrainContext));

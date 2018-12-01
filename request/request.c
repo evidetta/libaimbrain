@@ -1,30 +1,17 @@
-#include "aimbrain.h"
-
-typedef struct Request {
-  char* host;
-  char* endpoint;
-  cJSON* body;
-} Request;
-
-typedef struct Response {
-  int status_code;
-  cJSON* body;
-  AimbrainError error;
-} Response;
+#include "request.h"
 
 typedef struct MemoryStruct {
   char *memory;
   size_t size;
 } MemoryStruct;
 
-/*
+
 static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp) {
   size_t realsize = size * nmemb;
-  struct MemoryStruct *mem = (struct MemoryStruct *)userp;
+  MemoryStruct *mem = (MemoryStruct *)userp;
 
   char *ptr = realloc(mem->memory, mem->size + realsize + 1);
   if(ptr == NULL) {
-    printf("not enough memory (realloc returned NULL)\n");
     return 0;
   }
 
@@ -34,9 +21,9 @@ static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, voi
   mem->memory[mem->size] = 0;
 
   return realsize;
-}*/
+}
 
-void SHA256HMAC(const char* key, const char* message, unsigned char* result, unsigned int* len) {
+static void SHA256HMAC(const char* key, const char* message, unsigned char* result, unsigned int* len) {
   HMAC_CTX *ctx;
   ctx = HMAC_CTX_new();
 
@@ -46,7 +33,7 @@ void SHA256HMAC(const char* key, const char* message, unsigned char* result, uns
   HMAC_CTX_free(ctx);
 }
 
-void Base64Encode(const unsigned char* buffer, size_t length, char** b64text) {
+static void Base64Encode(const unsigned char* buffer, size_t length, char** b64text) {
 	BIO *bio, *b64;
 	BUF_MEM *bufferPtr;
 
@@ -176,15 +163,23 @@ Response MakeRequest(AimbrainContext* ctx, Request request) {
   //Set CURL Options
   char curl_error_buffer[CURL_ERROR_SIZE];
 
+  MemoryStruct response_buffer;
+
+  response_buffer.size = 0;
+  response_buffer.memory = (char *)malloc(sizeof(char));
+  if(response_buffer.memory == NULL) {
+    AimbrainError err = {AIMBRAIN_MEMORY_ERROR, "Memory allocation for response_buffer.memory failed."};
+    response.error = err;
+    goto cleanup_response_buffer_memory;
+  }
+
   curl_easy_setopt(curl, CURLOPT_URL, url);
   curl_easy_setopt(curl, CURLOPT_POST, 1L);
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
   curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_data);
   curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curl_error_buffer);
-
-  //curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
-  //curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&chunk);
-  //curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&response_buffer);
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
 
   CURLcode res;
   res = curl_easy_perform(curl);
@@ -200,17 +195,14 @@ Response MakeRequest(AimbrainContext* ctx, Request request) {
     else {
       fprintf(stderr, "%s\n", curl_easy_strerror(res));
     }
-
-    goto network_error;
   }
-  /*
 
-  MemoryStruct response;
-  response.memory = malloc(1);
-  response.size = 0;
+  curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &response.status_code);
+  response.body = cJSON_Parse(response_buffer.memory);
 
-*/
-network_error:
+//Cleanup before exit
+cleanup_response_buffer_memory:
+  free(response_buffer.memory);
 cleanup_headers:
   curl_slist_free_all(headers);
 cleanup_curl:
@@ -227,27 +219,4 @@ cleanup_url:
   free(url);
 
   return response;
-}
-
-int main(int argc, char const *argv[]) {
-  AimbrainContext* ctx = Aimbrain_Init("test", "secret");
-  if(ctx == NULL) {
-    goto cleanup_ctx;
-  }
-
-  cJSON* obj = cJSON_CreateObject();
-  if(obj == NULL) {
-    goto cleanup_obj;
-  }
-
-  Request request = {"https://api.aimbrain.com", "/v1/sessions", obj};
-  Response response = MakeRequest(ctx, request);
-
-  printf("%s\n", response.error.msg);
-
-cleanup_obj:
-  cJSON_Delete(obj);
-cleanup_ctx:
-  Aimbrain_Dispose(ctx);
-  return 0;
 }
