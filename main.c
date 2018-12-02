@@ -3,23 +3,29 @@
 #include "aimbrain/aimbrain.h"
 
 int main(int argc, char const *argv[]) {
-  AimbrainContext* ctx = Aimbrain_Init("test", "secret");
+  AimbrainContext* ctx = Aimbrain_Init("", "");
   if(ctx == NULL) {
     goto cleanup_ctx;
   }
 
   AimbrainSessionsInput input = {"user", "device", "system", 200, 200};
-  AimbrainSessionsOutput output;
-  char buffer[100];
-  output.session = buffer;
+  AimbrainSessionsOutput* output = NULL;
 
-  Aimbrain_Sessions(ctx, input, &output);
+  AimbrainError err = Aimbrain_Sessions(ctx, input, &output);
+  if(err.code != AIMBRAIN_NO_ERROR) {
+    printf("hello\n");
+    printf("%d\n", err.code);
+    printf("%s\n", err.msg);
+    goto cleanup_sessions;
+  }
 
-  printf("%s\n", output.session);
-  printf("%d\n", output.face);
-  printf("%d\n", output.voice);
-  printf("%d\n", output.behaviour);
+  printf("%s\n", output->session);
+  printf("%d\n", output->face);
+  printf("%d\n", output->voice);
+  printf("%d\n", output->behaviour);
 
+cleanup_sessions:
+  Aimbrain_DisposeAimbrainSessionsOutput(output);
 cleanup_ctx:
   Aimbrain_Dispose(ctx);
   return 0;

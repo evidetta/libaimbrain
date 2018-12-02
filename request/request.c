@@ -1,5 +1,15 @@
 #include "request.h"
 
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <curl/curl.h>
+#include <cjson/cJSON.h>
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+#include <openssl/hmac.h>
+#include <openssl/buffer.h>
+
 typedef struct MemoryStruct {
   char *memory;
   size_t size;
@@ -97,7 +107,7 @@ Response MakeRequest(AimbrainContext* ctx, Request request) {
   strncat(payload, request_data, strlen(request_data));
 
   MemoryStruct raw_hash;
-  raw_hash.size = 64;
+  raw_hash.size = SHA256_BLOCK_SIZE; //Output buffer size for SHA256 output.
   raw_hash.memory = (char *)malloc(sizeof(char) * raw_hash.size);
   if(raw_hash.memory == NULL) {
     AimbrainError err = {AIMBRAIN_MEMORY_ERROR, "Memory allocation for raw_hash.memory failed."};

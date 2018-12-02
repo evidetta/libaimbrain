@@ -19,14 +19,14 @@ typedef enum AimbrainErrorCode {
 
 typedef struct AimbrainError {
   AimbrainErrorCode code;
-  const char* msg;
+  char const * msg;
 } AimbrainError;
 
 //Sessions
 typedef struct AimbrainSessionsInput {
-  const char* user_id;
-  const char* device;
-  const char* system;
+  char const * user_id;
+  char const * device;
+  char const * system;
   int screen_height;
   int screen_width;
 } AimbrainSessionsInput;
@@ -36,12 +36,12 @@ typedef struct AimbrainSessionsOutput {
   int face;
   int voice;
   int behaviour;
-  AimbrainError error;
 } AimbrainSessionsOutput;
 
-AimbrainContext* Aimbrain_Init(const char* apiKey, const char* secret);
+AimbrainContext* Aimbrain_Init(char const * apiKey, char const * secret);
 void Aimbrain_Dispose(AimbrainContext* ctx);
 
-void Aimbrain_Sessions(AimbrainContext* ctx, AimbrainSessionsInput input, AimbrainSessionsOutput* output);
+AimbrainError Aimbrain_Sessions(AimbrainContext* ctx, AimbrainSessionsInput input, AimbrainSessionsOutput** output);
+void Aimbrain_DisposeAimbrainSessionsOutput(AimbrainSessionsOutput* output);
 
 #endif

@@ -1,17 +1,10 @@
 #ifndef REQUEST_H
 #define REQUEST_H
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <curl/curl.h>
 #include <cjson/cJSON.h>
-#include <openssl/bio.h>
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
-#include <openssl/buffer.h>
-
 #include "../aimbrain/aimbrain.h"
+
+#define SHA256_BLOCK_SIZE 64
 
 typedef struct Request {
   char* host;
