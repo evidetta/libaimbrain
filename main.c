@@ -3,7 +3,7 @@
 #include "aimbrain/aimbrain.h"
 
 int main(int argc, char const *argv[]) {
-  AimbrainContext* ctx = Aimbrain_Init("test", "secre");
+  AimbrainContext* ctx = Aimbrain_Init("test", "secret");
   if(ctx == NULL) {
     goto cleanup_ctx;
   }

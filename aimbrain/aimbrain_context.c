@@ -18,7 +18,6 @@ AimbrainContext* Aimbrain_Init(char const * api_key, char const * secret) {
 void Aimbrain_Dispose(AimbrainContext* ctx) {
   if(ctx != NULL) {
     if(ctx->error != NULL) {
-      printf("0x%x\n", ctx->error);
       free(ctx->error);
     }
     free(ctx);

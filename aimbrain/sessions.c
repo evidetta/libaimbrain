@@ -129,15 +129,12 @@ service_error:
 internal_error:
 cleanup_obj:
   cJSON_Delete(obj);
-
   return err;
 }
 
 void Aimbrain_DisposeAimbrainSessionsOutput(AimbrainSessionsOutput* output) {
   if(output != NULL) {
-    printf("HERE");
     free(output->session);
     free(output);
-    printf("Disposed OK\n");
   }
 }

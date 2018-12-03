@@ -7,7 +7,6 @@
 #include <curl/curl.h>
 #include <cjson/cJSON.h>
 #include <openssl/bio.h>
-#include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/buffer.h>
 
@@ -44,7 +43,7 @@ static void SHA256HMAC(const char* key, const char* message, unsigned char* resu
   HMAC_CTX_free(ctx);
 }
 
-static void Base64Encode(const unsigned char* buffer, size_t length, char** b64text) {
+static char* Base64Encode(const unsigned char* buffer, size_t length) {
 	BIO *bio, *b64;
 	BUF_MEM *bufferPtr;
 
@@ -56,10 +55,13 @@ static void Base64Encode(const unsigned char* buffer, size_t length, char** b64t
 	BIO_write(bio, buffer, length);
 	BIO_flush(bio);
 	BIO_get_mem_ptr(bio, &bufferPtr);
-	BIO_set_close(bio, BIO_NOCLOSE);
-	BIO_free_all(bio);
 
-	*b64text=(*bufferPtr).data;
+  char* b64_str = (char *)malloc(bufferPtr->length);
+  memset(b64_str, 0, bufferPtr->length);
+  memcpy(b64_str, bufferPtr->data, bufferPtr->length - 1);
+
+  BIO_free_all(bio);
+  return b64_str;
 }
 
 Response MakeRequest(AimbrainContext* ctx, Request request) {
@@ -67,45 +69,62 @@ Response MakeRequest(AimbrainContext* ctx, Request request) {
   Response response = {0, NULL, err};
 
   //Concatenate URL from host and endpoint.
-  char* url = (char *)malloc(sizeof(char) * (strlen(request.host) + strlen(request.endpoint) + 1));
-  if(url == NULL) {
+  MemoryStruct url;
+  url.size = sizeof(char) * (strlen(request.host) + strlen(request.endpoint) + 1);
+  url.memory = (char *)malloc(url.size);
+  if(url.memory == NULL) {
     AimbrainError err = GetNewAimbrainError(ctx, AIMBRAIN_MEMORY_ERROR, "Memory allocation for url failed.");
     response.error = err;
-    goto cleanup_url;
+    goto cleanup_url_memory;
   }
 
-  strncpy(url, request.host, strlen(request.host));
-  strncat(url, request.endpoint, strlen(request.endpoint));
+  memset(url.memory, 0, url.size);
+  strncpy(url.memory, request.host, strlen(request.host));
+  strncat(url.memory, request.endpoint, strlen(request.endpoint));
 
   //Concatenate API Key Header.
   char* api_key_header_key = "X-aimbrain-apikey: ";
-  char* api_key_header = (char *)malloc(sizeof(char) * (strlen(api_key_header_key) + strlen(ctx->api_key) + 1));
-  if(api_key_header == NULL) {
+
+  MemoryStruct api_key_header;
+  api_key_header.size = sizeof(char) * (strlen(api_key_header_key) + strlen(ctx->api_key) + 1);
+  api_key_header.memory = (char *)malloc(api_key_header.size);
+  if(api_key_header.memory == NULL) {
     AimbrainError err = GetNewAimbrainError(ctx, AIMBRAIN_MEMORY_ERROR, "Memory allocation for api_key_header failed.");
     response.error = err;
-    goto cleanup_api_key_header;
+    goto cleanup_api_key_header_memory;
   }
 
-  strncpy(api_key_header, api_key_header_key, strlen(api_key_header_key));
-  strncat(api_key_header, ctx->api_key, strlen(ctx->api_key));
+  memset(api_key_header.memory, 0, api_key_header.size);
+  strncpy(api_key_header.memory, api_key_header_key, strlen(api_key_header_key));
+  strncat(api_key_header.memory, ctx->api_key, strlen(ctx->api_key));
 
   //Generate SHA256-HMAC using secret and payload.
   char* request_method = "POST";
+
   char* request_data = cJSON_PrintUnformatted(request.body);
-  char* payload = (char *)malloc(sizeof(char) * (strlen(request_method) + strlen(request.endpoint) + strlen(request_data) + 3));
-  if(payload == NULL) {
+  if(request_data == NULL) {
     AimbrainError err = GetNewAimbrainError(ctx, AIMBRAIN_MEMORY_ERROR, "Memory allocation for payload failed.");
     response.error = err;
-    goto cleanup_payload;
+    goto cleanup_request_data;
+  }
+
+  MemoryStruct payload;
+  payload.size = sizeof(char) * (strlen(request_method) + strlen(request.endpoint) + strlen(request_data) + 3);
+  payload.memory = (char *)malloc(payload.size);
+  if(payload.memory == NULL) {
+    AimbrainError err = GetNewAimbrainError(ctx, AIMBRAIN_MEMORY_ERROR, "Memory allocation for payload failed.");
+    response.error = err;
+    goto cleanup_payload_memory;
   }
 
   char* carriage_return = ENDL;
 
-  strcpy(payload, request_method); //TODO: Investigate this hack.
-  strncat(payload, carriage_return, strlen(carriage_return));
-  strncat(payload, request.endpoint, strlen(request.endpoint));
-  strncat(payload, carriage_return, strlen(carriage_return));
-  strncat(payload, request_data, strlen(request_data));
+  memset(payload.memory, 0, payload.size);
+  strncpy(payload.memory, request_method, strlen(request_method));
+  strncat(payload.memory, carriage_return, strlen(carriage_return));
+  strncat(payload.memory, request.endpoint, strlen(request.endpoint));
+  strncat(payload.memory, carriage_return, strlen(carriage_return));
+  strncat(payload.memory, request_data, strlen(request_data));
 
   MemoryStruct raw_hash;
   raw_hash.size = SHA256_BLOCK_SIZE; //Output buffer size for SHA256 output.
@@ -116,23 +135,30 @@ Response MakeRequest(AimbrainContext* ctx, Request request) {
     goto cleanup_raw_hash_memory;
   }
 
-  SHA256HMAC(ctx->secret, payload, (unsigned char *)raw_hash.memory, (unsigned int *)&raw_hash.size);
+  SHA256HMAC(ctx->secret, payload.memory, (unsigned char *)raw_hash.memory, (unsigned int *)&raw_hash.size);
 
   //Base64-encode the hash.
-  char* b64_hash;
-  Base64Encode((const unsigned char *)raw_hash.memory, raw_hash.size, &b64_hash);
+  char* b64_hash = Base64Encode((const unsigned char *)raw_hash.memory, raw_hash.size);
+  if(b64_hash == NULL) {
+    AimbrainError err = GetNewAimbrainError(ctx, AIMBRAIN_MEMORY_ERROR, "Memory allocation for b64_hash failed.");
+    response.error = err;
+    goto cleanup_b64_hash;
+  }
 
   //Concatenate Signature Header.
   char* signature_header_key = "X-aimbrain-signature: ";
-  char* signature_header = (char *)malloc(sizeof(char) * (strlen(signature_header_key) + strlen(b64_hash) + 1));
-  if(signature_header == NULL) {
+  MemoryStruct signature_header;
+  signature_header.size = sizeof(char) * (strlen(signature_header_key) + strlen(b64_hash) + 1);
+  signature_header.memory = (char *)malloc(signature_header.size);
+  if(signature_header.memory == NULL) {
     AimbrainError err = GetNewAimbrainError(ctx, AIMBRAIN_MEMORY_ERROR, "Memory allocation for signature_header failed.");
     response.error = err;
-    goto cleanup_signature_header;
+    goto cleanup_signature_header_memory;
   }
 
-  strncpy(signature_header, signature_header_key, strlen(signature_header_key));
-  strncat(signature_header, b64_hash, strlen(b64_hash));
+  memset(signature_header.memory, 0, signature_header.size);
+  strncpy(signature_header.memory, signature_header_key, strlen(signature_header_key));
+  strncat(signature_header.memory, b64_hash, strlen(b64_hash));
 
   //Set up CURL
   CURL *curl = curl_easy_init();
@@ -157,14 +183,14 @@ Response MakeRequest(AimbrainContext* ctx, Request request) {
     goto cleanup_headers;
   }
 
-  headers = curl_slist_append(headers, api_key_header);
+  headers = curl_slist_append(headers, api_key_header.memory);
   if(headers == NULL) {
     AimbrainError err = GetNewAimbrainError(ctx, AIMBRAIN_MEMORY_ERROR, "Memory allocation for X-aimbrain-apikey header failed.");
     response.error = err;
     goto cleanup_headers;
   }
 
-  headers = curl_slist_append(headers, signature_header);
+  headers = curl_slist_append(headers, signature_header.memory);
   if(headers == NULL) {
     AimbrainError err = GetNewAimbrainError(ctx, AIMBRAIN_MEMORY_ERROR, "Memory allocation for X-aimbrain-signature header failed.");
     response.error = err;
@@ -218,16 +244,20 @@ cleanup_headers:
   curl_slist_free_all(headers);
 cleanup_curl:
   curl_easy_cleanup(curl);
-cleanup_signature_header:
-  free(signature_header);
+cleanup_signature_header_memory:
+  free(signature_header.memory);
+cleanup_b64_hash:
+  free(b64_hash);
 cleanup_raw_hash_memory:
   free(raw_hash.memory);
-cleanup_payload:
-  free(payload);
-cleanup_api_key_header:
-  free(api_key_header);
-cleanup_url:
-  free(url);
+cleanup_payload_memory:
+  free(payload.memory);
+cleanup_request_data:
+  free(request_data);
+cleanup_api_key_header_memory:
+  free(api_key_header.memory);
+cleanup_url_memory:
+  free(url.memory);
 
   return response;
 }
