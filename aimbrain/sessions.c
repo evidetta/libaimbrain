@@ -1,11 +1,11 @@
 #include "aimbrain.h"
+#include "../request/request.h"
+#include "../error/error.h"
 
 #include <cjson/cJSON.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-#include "../request/request.h"
 
 
 AimbrainError Aimbrain_Sessions(AimbrainContext* ctx, AimbrainSessionsInput input, AimbrainSessionsOutput** output) {
@@ -13,24 +13,21 @@ AimbrainError Aimbrain_Sessions(AimbrainContext* ctx, AimbrainSessionsInput inpu
 
   cJSON* obj = cJSON_CreateObject();
   if(obj == NULL) {
-    err.code = AIMBRAIN_MEMORY_ERROR;
-    err.msg = "Memory allocation for obj failed.";
+    err = GetNewAimbrainError(ctx, AIMBRAIN_MEMORY_ERROR, "Memory allocation for obj failed.");
     goto cleanup_obj;
   }
 
   cJSON* user_id = cJSON_CreateString(input.user_id);
   if(user_id == NULL) {
-    err.code = AIMBRAIN_MEMORY_ERROR;
-    err.msg = "Memory allocation for user_id failed.";
+    err = GetNewAimbrainError(ctx, AIMBRAIN_MEMORY_ERROR, "Memory allocation for user_id failed.");
     goto cleanup_obj;
   }
 
   cJSON_AddItemToObject(obj, "userID", user_id);
 
   cJSON* device = cJSON_CreateString(input.device);
-  if(device == NULL) {  
-    err.code = AIMBRAIN_MEMORY_ERROR;
-    err.msg = "Memory allocation for device failed.";
+  if(device == NULL) {
+    err = GetNewAimbrainError(ctx, AIMBRAIN_MEMORY_ERROR, "Memory allocation for device failed.");
     goto cleanup_obj;
   }
 
@@ -38,8 +35,7 @@ AimbrainError Aimbrain_Sessions(AimbrainContext* ctx, AimbrainSessionsInput inpu
 
   cJSON* system = cJSON_CreateString(input.system);
   if(system == NULL) {
-    err.code = AIMBRAIN_MEMORY_ERROR;
-    err.msg = "Memory allocation for system failed.";
+    err = GetNewAimbrainError(ctx, AIMBRAIN_MEMORY_ERROR, "Memory allocation for system failed.");
     goto cleanup_obj;
   }
 
@@ -47,8 +43,7 @@ AimbrainError Aimbrain_Sessions(AimbrainContext* ctx, AimbrainSessionsInput inpu
 
   cJSON* screen_height = cJSON_CreateNumber(input.screen_height);
   if(screen_height == NULL) {
-    err.code = AIMBRAIN_MEMORY_ERROR;
-    err.msg = "Memory allocation for screen_height failed.";
+    err = GetNewAimbrainError(ctx, AIMBRAIN_MEMORY_ERROR, "Memory allocation for screen_height failed.");
     goto cleanup_obj;
   }
 
@@ -56,8 +51,7 @@ AimbrainError Aimbrain_Sessions(AimbrainContext* ctx, AimbrainSessionsInput inpu
 
   cJSON* screen_width = cJSON_CreateNumber(input.screen_width);
   if(screen_width == NULL) {
-    err.code = AIMBRAIN_MEMORY_ERROR;
-    err.msg = "Memory allocation for screen_width failed.";
+    err = GetNewAimbrainError(ctx, AIMBRAIN_MEMORY_ERROR, "Memory allocation for screen_width failed.");
     goto cleanup_obj;
   }
 
@@ -71,19 +65,34 @@ AimbrainError Aimbrain_Sessions(AimbrainContext* ctx, AimbrainSessionsInput inpu
     goto internal_error;
   }
 
-  //
   cJSON* error = cJSON_GetObjectItemCaseSensitive(response.body, "error");
   if (cJSON_IsString(error) && (error->valuestring != NULL)) {
-    err.code = AIMBRAIN_SERVICE_ERROR;
-    err.msg = error->valuestring;
+    switch(response.status_code) {
+      case 400:
+        err = GetNewAimbrainError(ctx, AIMBRAIN_SERVICE_ERROR, "Returned HTTP 400: Bad Request");
+        break;
+      case 401:
+        err = GetNewAimbrainError(ctx, AIMBRAIN_SERVICE_ERROR, "Returned HTTP 401: Unauthorized");
+        break;
+      case 403:
+        err = GetNewAimbrainError(ctx, AIMBRAIN_SERVICE_ERROR, "Returned HTTP 403: Forbidden");
+        break;
+      case 500:
+        err = GetNewAimbrainError(ctx, AIMBRAIN_SERVICE_ERROR, "Returned HTTP 500: Internal Server Error");
+        break;
+      default:
+        err = GetNewAimbrainError(ctx, AIMBRAIN_SERVICE_ERROR, "Returned unexpected code");
+        break;
+    }
+
+    SetErrorMessage(ctx, error->valuestring);
     goto service_error;
   }
 
   //Allocate new memory off the heap for AimbrainSessionsOutput
   *output = (AimbrainSessionsOutput *)malloc(sizeof(AimbrainSessionsOutput));
   if(*output == NULL) {
-    err.code = AIMBRAIN_MEMORY_ERROR;
-    err.msg = "Memory allocation for output failed.";
+    err = GetNewAimbrainError(ctx, AIMBRAIN_MEMORY_ERROR, "Memory allocation for output failed.");
     goto cleanup_output;
   }
 
@@ -92,8 +101,7 @@ AimbrainError Aimbrain_Sessions(AimbrainContext* ctx, AimbrainSessionsInput inpu
     (*output)->session = (char *)malloc(strlen(session->valuestring));
     if((*output)->session == NULL) {
       free(*output);
-      err.code = AIMBRAIN_MEMORY_ERROR;
-      err.msg = "Memory allocation for output.session failed.";
+      err = GetNewAimbrainError(ctx, AIMBRAIN_MEMORY_ERROR, "Memory allocation for output.session failed.");
       goto cleanup_output_session;
     }
     strncpy(((*output)->session), session->valuestring, strlen(session->valuestring));
@@ -127,7 +135,9 @@ cleanup_obj:
 
 void Aimbrain_DisposeAimbrainSessionsOutput(AimbrainSessionsOutput* output) {
   if(output != NULL) {
+    printf("HERE");
     free(output->session);
     free(output);
+    printf("Disposed OK\n");
   }
 }

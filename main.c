@@ -3,7 +3,7 @@
 #include "aimbrain/aimbrain.h"
 
 int main(int argc, char const *argv[]) {
-  AimbrainContext* ctx = Aimbrain_Init("", "");
+  AimbrainContext* ctx = Aimbrain_Init("test", "secre");
   if(ctx == NULL) {
     goto cleanup_ctx;
   }
@@ -13,9 +13,8 @@ int main(int argc, char const *argv[]) {
 
   AimbrainError err = Aimbrain_Sessions(ctx, input, &output);
   if(err.code != AIMBRAIN_NO_ERROR) {
-    printf("hello\n");
     printf("%d\n", err.code);
-    printf("%s\n", err.msg);
+    printf("%s\n", ctx->error);
     goto cleanup_sessions;
   }
 

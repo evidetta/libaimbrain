@@ -5,6 +5,7 @@
 #include "../aimbrain/aimbrain.h"
 
 #define SHA256_BLOCK_SIZE 64
+#define ENDL "\n"
 
 typedef struct Request {
   char* host;

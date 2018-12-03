@@ -6,8 +6,9 @@
 
 //General Structs
 typedef struct AimbrainContext {
-  const char* api_key;
-  const char* secret;
+  char const * api_key;
+  char const * secret;
+  char * error;
 } AimbrainContext;
 
 typedef enum AimbrainErrorCode {
