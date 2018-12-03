@@ -1,7 +1,6 @@
 #include "request.h"
 #include "../error/error.h"
 
-#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <curl/curl.h>
@@ -225,12 +224,8 @@ Response MakeRequest(AimbrainContext* ctx, Request request) {
     response.error = err;
 
     size_t len = strlen(curl_error_buffer);
-    fprintf(stderr, "\nlibcurl: (%d) ", res);
     if(len) {
-      fprintf(stderr, "%s%s", curl_error_buffer, ((curl_error_buffer[len - 1] != '\n') ? "\n" : ""));
-    }
-    else {
-      fprintf(stderr, "%s\n", curl_easy_strerror(res));
+      SetErrorMessage(ctx, curl_error_buffer);
     }
   }
 

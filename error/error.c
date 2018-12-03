@@ -12,7 +12,6 @@ AimbrainError GetNewAimbrainError(AimbrainContext* ctx, AimbrainErrorCode code, 
 
 void SetErrorMessage(AimbrainContext* ctx, char* msg) {
   free(ctx->error);
-  ctx->error = NULL;
   int len = sizeof(char) * (strlen(msg) + 1);
   ctx->error = (char *)malloc(len);
   if(ctx->error != NULL) {
