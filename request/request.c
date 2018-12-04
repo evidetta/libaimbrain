@@ -198,6 +198,7 @@ Response MakeRequest(AimbrainContext* ctx, Request request) {
 
   //Set CURL Options
   char curl_error_buffer[CURL_ERROR_SIZE];
+  memset(curl_error_buffer, 0, CURL_ERROR_SIZE);
 
   MemoryStruct response_buffer;
 
