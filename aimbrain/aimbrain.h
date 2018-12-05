@@ -23,6 +23,15 @@ typedef struct AimbrainError {
   char const * msg;
 } AimbrainError;
 
+typedef enum AimbrainTokenType {
+  AIMBRAIN_ENROLL_1,
+  AIMBRAIN_ENROLL_2,
+  AIMBRAIN_ENROLL_3,
+  AIMBRAIN_ENROLL_4,
+  AIMBRAIN_ENROLL_5,
+  AIMBRAIN_AUTH
+} AimbrainTokenType;
+
 //Sessions
 typedef struct AimbrainSessionsInput {
   char const * user_id;
